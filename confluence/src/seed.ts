@@ -382,6 +382,17 @@ async function main() {
   });
   console.log(`Moved "${reactFolder.name}" to path: "${movedReactFolder.path}"`);
 
+  // Refresh the moved nodes to get their updated paths
+  const updatedWelcomeDoc = await db.document.findUnique({
+    where: { id: facebookWelcomeDoc.id },
+    select: { path: true },
+  });
+
+  const updatedReactFolder = await db.folder.findUnique({
+    where: { id: reactFolder.id },
+    select: { path: true, name: true },
+  });
+
   console.log("\n=== Final State After Moves ===");
   console.log({
     facebookOrg: facebookOrg.name,
@@ -390,7 +401,7 @@ async function main() {
     facebookTeams: [reactTeam.name, whatsappTeam.name],
     googleTeams: [searchTeam.name, adsTeam.name],
     facebookDocs: [
-      facebookWelcomeDoc.path, // This will be the original path
+      updatedWelcomeDoc?.path ?? facebookWelcomeDoc.path, // Use updated path if available
       reactGuidelinesDoc.path,
       whatsappArchitectureDoc.path,
     ],
