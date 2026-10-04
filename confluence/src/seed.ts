@@ -1,5 +1,7 @@
 import { TeamRole } from "generated/prisma/enums";
 import { db } from "./db/client";
+import { getFsTree, renderFsTree } from "./get-fs-tree";
+import { moveNode } from "./application/filesystem/move-node";
 
 
 /**
@@ -363,7 +365,24 @@ async function main() {
     },
   });
 
-  console.log("Seed completed.");
+  // Demonstrate moveNode functionality
+  console.log("\n=== Moving facebookWelcomeDoc to reactFolder ===");
+  const movedWelcomeDoc = await moveNode({
+    nodeId: facebookWelcomeDoc.id,
+    nodeType: "document",
+    destinationFolderId: reactFolder.id,
+  });
+  console.log(`Moved "${facebookWelcomeDoc.name}" to path: "${movedWelcomeDoc.path}"`);
+
+  console.log("\n=== Moving reactFolder to be under whatsappFolder ===");
+  const movedReactFolder = await moveNode({
+    nodeId: reactFolder.id,
+    nodeType: "folder",
+    destinationFolderId: whatsappFolder.id,
+  });
+  console.log(`Moved "${reactFolder.name}" to path: "${movedReactFolder.path}"`);
+
+  console.log("\n=== Final State After Moves ===");
   console.log({
     facebookOrg: facebookOrg.name,
     googleOrg: googleOrg.name,
@@ -371,7 +390,7 @@ async function main() {
     facebookTeams: [reactTeam.name, whatsappTeam.name],
     googleTeams: [searchTeam.name, adsTeam.name],
     facebookDocs: [
-      facebookWelcomeDoc.path,
+      facebookWelcomeDoc.path, // This will be the original path
       reactGuidelinesDoc.path,
       whatsappArchitectureDoc.path,
     ],
@@ -381,6 +400,9 @@ async function main() {
       adsPlatformDoc.path,
     ],
   });
+
+  console.log("\n")
+  console.log(renderFsTree(await getFsTree()));
 }
 
 main()
