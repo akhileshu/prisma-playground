@@ -19,7 +19,7 @@ export async function moveNode(
   // Get the destination folder to build the new path
   const destinationFolder = await db.folder.findUnique({
     where: { id: destinationFolderId },
-    select: { path: true, name: true },
+    select: { path: true, name: true, id: true },
   });
 
   if (!destinationFolder) {
@@ -51,19 +51,63 @@ export async function moveNode(
     : destinationFolder.path;
   const newPath = `${destPath}/${node.name}`;
 
-  // Update the node's path
+  // Update the node's path AND structural relationship
   let updatedNode;
   if (nodeType === "folder") {
     updatedNode = await db.folder.update({
       where: { id: nodeId },
-      data: { path: newPath },
+      data: {
+        path: newPath,
+        parentId: destinationFolder.id,
+      },
     });
+
+    // Recursively update all descendants' paths
+    await updateDescendantPaths(nodeId, newPath);
   } else {
     updatedNode = await db.document.update({
       where: { id: nodeId },
-      data: { path: newPath },
+      data: {
+        path: newPath,
+        folderId: destinationFolder.id,
+      },
     });
   }
 
   return updatedNode;
+}
+
+// Helper function to recursively update paths of all descendants of a folder
+async function updateDescendantPaths(folderId: number, newParentPath: string) {
+  // Get all direct children folders and documents
+  const [childFolders, childDocuments] = await Promise.all([
+    db.folder.findMany({
+      where: { parentId: folderId },
+      select: { id: true, name: true, path: true },
+    }),
+    db.document.findMany({
+      where: { folderId: folderId },
+      select: { id: true, name: true, path: true },
+    }),
+  ]);
+
+  // Update child folders
+  for (const folder of childFolders) {
+    const newPath = `${newParentPath}/${folder.name}`;
+    await db.folder.update({
+      where: { id: folder.id },
+      data: { path: newPath },
+    });
+    // Recursively update this folder's descendants
+    await updateDescendantPaths(folder.id, newPath);
+  }
+
+  // Update child documents
+  for (const document of childDocuments) {
+    const newPath = `${newParentPath}/${document.name}`;
+    await db.document.update({
+      where: { id: document.id },
+      data: { path: newPath },
+    });
+  }
 }
